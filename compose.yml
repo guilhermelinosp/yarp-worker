@@ -1,0 +1,103 @@
+services:
+  yarp:
+    image: yarp-alpine:latest
+    ports:
+      - "5000:80"
+    volumes:
+      - ./yarp/appsettings.json:/app/appsettings.json
+    depends_on:
+      - instance1
+      - instance2
+      - instance3
+      - instance4
+      - instance5
+    environment:
+      - INSTANCE_NAME=yarp
+    networks:
+      - internal
+      - traefik
+    healthcheck:
+      test: [ "CMD", "wget", "--spider", "-q", "http://localhost" ]
+      interval: 10s
+      timeout: 5s
+      retries: 3
+
+  instance1:
+    image: instance:latest
+    volumes:
+      - ./instance/appsettings.json:/app/appsettings.json
+    environment:
+      - INSTANCE_NAME=instance1
+    networks:
+      - internal
+      - traefik
+    healthcheck:
+      test: [ "CMD", "wget", "--spider", "-q", "http://localhost" ]
+      interval: 10s
+      timeout: 5s
+      retries: 3
+
+  instance2:
+    image: instance:latest
+    volumes:
+      - ./instance/appsettings.json:/app/appsettings.json
+    environment:
+      - INSTANCE_NAME=instance2
+    networks:
+      - internal
+      - traefik
+    healthcheck:
+      test: [ "CMD", "wget", "--spider", "-q", "http://localhost" ]
+      interval: 10s
+      timeout: 5s
+      retries: 3
+
+  instance3:
+    image: instance:latest
+    volumes:
+      - ./instance/appsettings.json:/app/appsettings.json
+    environment:
+      - INSTANCE_NAME=instance3
+    networks:
+      - internal
+      - traefik
+    healthcheck:
+      test: [ "CMD", "wget", "--spider", "-q", "http://localhost" ]
+      interval: 10s
+      timeout: 5s
+      retries: 3
+
+  instance4:
+    image: instance:latest
+    volumes:
+      - ./instance/appsettings.json:/app/appsettings.json
+    environment:
+      - INSTANCE_NAME=instance4
+    networks:
+      - internal
+      - traefik
+    healthcheck:
+      test: [ "CMD", "wget", "--spider", "-q", "http://localhost" ]
+      interval: 10s
+      timeout: 5s
+      retries: 3
+
+  instance5:
+    image: instance:latest
+    volumes:
+      - ./instance/appsettings.json:/app/appsettings.json
+    environment:
+      - INSTANCE_NAME=instance5
+    networks:
+      - internal
+      - traefik
+    healthcheck:
+      test: [ "CMD", "wget", "--spider", "-q", "http://localhost" ]
+      interval: 10s
+      timeout: 5s
+      retries: 3
+
+networks:
+  internal:
+  traefik:
+    external: true
