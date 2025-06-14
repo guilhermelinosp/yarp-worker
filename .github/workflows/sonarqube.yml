@@ -1,5 +1,8 @@
 name: SAST CI
 
+permissions:
+  contents: read
+
 on:
   push:
     branches: [ "main" ]
