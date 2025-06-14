@@ -30,8 +30,12 @@ ENV DOTNET_GCServer=1 \
     DOTNET_TieredCompilation=1 \
     DOTNET_SYSTEM_GLOBALIZATION_INVARIANT=true
 
-# Copy published files and set ownership to non-root user
+# Copy published files with explicit ownership and permissions
 COPY --from=build --chown=appuser:appgroup /app/publish .
+# Set strict permissions for executables (e.g., yarp.dll)
+RUN chmod -R 644 /app/* && \
+    chmod 755 /app/yarp.dll
+
 # Switch to non-root user
 USER appuser
 
