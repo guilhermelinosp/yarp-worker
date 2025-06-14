@@ -50,7 +50,7 @@ jobs:
         with:
           path: ${{ env.SONAR_SCANNER_DIR }}
           key: ${{ runner.os }}-sonar-scanner
-          restore-keys: ${{ runner.os }}-sonar-scanner
+          restore-keys: ${{ runner.os }}-sonar-scanner-
 
       - name: Install SonarQube Scanner
         if: steps.cache-sonar-scanner.outputs.cache-hit != 'true'
@@ -59,7 +59,7 @@ jobs:
           dotnet tool install dotnet-sonarscanner --tool-path "${{ env.SONAR_SCANNER_DIR }}"
         continue-on-error: false # Fail fast if installation fails
 
-      - name: SonarQube Begin
+      - name: Build and Analyze with SonarQube
         run: |
           "${{ env.SONAR_SCANNER_DIR }}/dotnet-sonarscanner" begin \
             /k:"${{ env.SONAR_PROJECT_KEY }}" \
@@ -67,22 +67,12 @@ jobs:
             /d:sonar.host.url="${{ env.SONAR_HOST_URL }}" \
             /d:sonar.scanner.scanAll=false \
             /d:sonar.verbose=true # Enable verbose logging for debugging
-        continue-on-error: false # Fail fast if begin fails
 
-      - name: Build Project
-        run: dotnet build --configuration Release --no-restore # Optimize build
-        continue-on-error: false # Fail fast if build fails
+          dotnet build
 
-      - name: Run Tests
-        run: dotnet test --no-build --configuration Release --logger "console;verbosity=detailed"
-        continue-on-error: true # Allow tests to fail without stopping analysis
-
-      - name: SonarQube End
-        if: always() # Run even if previous steps fail
-        run: |
           "${{ env.SONAR_SCANNER_DIR }}/dotnet-sonarscanner" end \
             /d:sonar.token="${{ env.SONAR_TOKEN }}"
-        continue-on-error: false # Fail if analysis upload fails
+        continue-on-error: false # Fail if any part fails
 
       - name: Check SonarQube Quality Gate
         if: always() # Run to provide feedback
