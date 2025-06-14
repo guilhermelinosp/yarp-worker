@@ -1,6 +1,7 @@
 FROM mcr.microsoft.com/dotnet/sdk:8.0-alpine AS build
 WORKDIR /src
 
+# Copy and restore as root (build stage doesn't need non-root user)
 COPY yarp/yarp.csproj ./yarp/
 WORKDIR /src/yarp
 RUN dotnet restore -r linux-musl-x64
@@ -14,6 +15,11 @@ RUN dotnet publish -c Release -o /app/publish \
 FROM mcr.microsoft.com/dotnet/aspnet:8.0-alpine AS final
 WORKDIR /app
 
+# Create a non-root user and group
+RUN addgroup -g 1001 -S appgroup && \
+    adduser -u 1001 -S appuser -G appgroup
+
+# Set environment variables
 ENV DOTNET_GCServer=1 \
     DOTNET_GCConcurrent=1 \
     DOTNET_System_GCLatencyMode=0 \
@@ -25,6 +31,10 @@ ENV DOTNET_GCServer=1 \
     DOTNET_TieredCompilation=1 \
     DOTNET_SYSTEM_GLOBALIZATION_INVARIANT=true
 
-COPY --from=build /app/publish .
+# Copy published files and set ownership to non-root user
+COPY --from=build --chown=appuser:appgroup /app/publish .
+# Switch to non-root user
+USER appuser
+
 EXPOSE 8080
 ENTRYPOINT ["dotnet", "yarp.dll"]
