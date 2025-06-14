@@ -1,8 +1,12 @@
-name: Build and SonarQube Analysis
+name: SAST CI
 
 on:
   push:
     branches: [ "main" ]
+    paths-ignore:
+      - '**.md'
+      - '**.txt'
+      - 'docs/**'
   pull_request:
     branches: [ "main" ]
 
@@ -13,6 +17,8 @@ env:
   SONAR_HOST_URL: ${{ secrets.SONAR_HOST_URL }}
   DOTNET_VERSION: "8.0.x"
   JAVA_VERSION: "17"
+  DOTNET_CLI_TELEMETRY_OPTOUT: 1
+  DOTNET_NOLOGO: true
 
 jobs:
   build-and-analyze:
@@ -37,11 +43,18 @@ jobs:
         with:
           dotnet-version: ${{ env.DOTNET_VERSION }}
 
+      - name: Cache NuGet Packages
+        uses: actions/cache@v4
+        with:
+          path: ~/.nuget/packages
+          key: ${{ runner.os }}-nuget-${{ hashFiles('**/*.csproj') }}
+          restore-keys: ${{ runner.os }}-nuget-
+
       - name: Cache SonarQube Packages
         uses: actions/cache@v4
         with:
           path: ~/.sonar/cache
-          key: ${{ runner.os }}-sonar-${{ hashFiles('**/global.json', '**/project.json') }}
+          key: ${{ runner.os }}-sonar-${{ hashFiles('**/*.csproj', '**/global.json', '**/project.json') }}
           restore-keys: ${{ runner.os }}-sonar-
 
       - name: Cache SonarQube Scanner
@@ -59,6 +72,10 @@ jobs:
           dotnet tool install dotnet-sonarscanner --tool-path "${{ env.SONAR_SCANNER_DIR }}"
         continue-on-error: false # Fail fast if installation fails
 
+      - name: Restore Dependencies
+        run: dotnet restore --no-cache --force
+        continue-on-error: false # Fail fast if restore fails
+
       - name: Build and Analyze with SonarQube
         run: |
           "${{ env.SONAR_SCANNER_DIR }}/dotnet-sonarscanner" begin \
@@ -68,7 +85,7 @@ jobs:
             /d:sonar.scanner.scanAll=false \
             /d:sonar.verbose=true # Enable verbose logging for debugging
 
-          dotnet build
+          dotnet build --no-restore --configuration Release --verbosity minimal
 
           "${{ env.SONAR_SCANNER_DIR }}/dotnet-sonarscanner" end \
             /d:sonar.token="${{ env.SONAR_TOKEN }}"
