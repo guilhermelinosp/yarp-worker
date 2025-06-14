@@ -1,8 +1,3 @@
-name: SAST CI
-
-permissions:
-  contents: read
-
 on:
   push:
     branches: [ "main" ]
@@ -24,16 +19,15 @@ env:
   DOTNET_NOLOGO: true
 
 jobs:
-  build-and-analyze:
-    name: Build and SonarQube Analysis
+  dynamic:
     runs-on: ubuntu-latest
-    timeout-minutes: 30 # Prevent runaway jobs
+    timeout-minutes: 30
 
     steps:
       - name: Checkout Code
         uses: actions/checkout@v4
         with:
-          fetch-depth: 0 # Required for SonarQube change detection
+          fetch-depth: 0
 
       - name: Setup JDK
         uses: actions/setup-java@v4
@@ -73,11 +67,11 @@ jobs:
         run: |
           mkdir -p "${{ env.SONAR_SCANNER_DIR }}"
           dotnet tool install dotnet-sonarscanner --tool-path "${{ env.SONAR_SCANNER_DIR }}"
-        continue-on-error: false # Fail fast if installation fails
+        continue-on-error: false
 
       - name: Restore Dependencies
         run: dotnet restore --no-cache --force
-        continue-on-error: false # Fail fast if restore fails
+        continue-on-error: false
 
       - name: Build and Analyze with SonarQube
         run: |
@@ -92,10 +86,10 @@ jobs:
 
           "${{ env.SONAR_SCANNER_DIR }}/dotnet-sonarscanner" end \
             /d:sonar.token="${{ env.SONAR_TOKEN }}"
-        continue-on-error: false # Fail if any part fails
+        continue-on-error: false
 
       - name: Check SonarQube Quality Gate
-        if: always() # Run to provide feedback
+        if: always()
         run: |
           QUALITY_GATE_STATUS=$(curl -s -u "${{ env.SONAR_TOKEN }}:" "${{ env.SONAR_HOST_URL }}/api/qualitygates/project_status?projectKey=${{ env.SONAR_PROJECT_KEY }}" | jq -r '.projectStatus.status')
           echo "SonarQube Quality Gate Status: $QUALITY_GATE_STATUS"

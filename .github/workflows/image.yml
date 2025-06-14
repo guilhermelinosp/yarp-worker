@@ -1,17 +1,22 @@
 on:
   push:
     branches: [ "main" ]
-    tags: [ "v*.*.*" ]
+    paths-ignore:
+      - '**.md'
+      - '**.txt'
+      - 'docs/**'
   pull_request:
     branches: [ "main" ]
 
-jobs:
-  build-image:
-    runs-on: ubuntu-latest
-    permissions:
-      packages: write
-      contents: read
+permissions:
+  packages: write
+  contents: read
 
+jobs:
+  dynamic:
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    
     steps:
       - name: Check out the repo
         uses: actions/checkout@v4
@@ -48,7 +53,7 @@ jobs:
 
           # Handle push to main
           if [[ "${{ github.event_name }}" == "push" && "${{ github.ref }}" == "refs/heads/main" ]]; then
-            TAGS="ghcr.io/${{ github.repository }}:latest,ghcr.io/${{ github.repository }}:main-${SHORT_SHA}"
+            TAGS="ghcr.io/${{ github.repository }}:latest,ghcr.io/${{ github.repository }}:${SHORT_SHA}"
           # Handle push to version tags (e.g., v1.0.0)
           elif [[ "${{ github.event_name }}" == "push" && "${{ github.ref }}" =~ ^refs/tags/v[0-9]+\.[0-9]+\.[0-9]+$ ]]; then
             VERSION=${GITHUB_REF#refs/tags/}
