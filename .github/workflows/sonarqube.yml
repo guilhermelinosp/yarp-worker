@@ -11,36 +11,40 @@ env:
   SONAR_SCANNER_DIR: ".sonar/scanner"
   SONAR_TOKEN: ${{ secrets.SONAR_TOKEN }}
   SONAR_HOST_URL: ${{ secrets.SONAR_HOST_URL }}
+  DOTNET_VERSION: "8.0.x"
+  JAVA_VERSION: "17"
 
 jobs:
-  build:
-    name: Build and Analyze
+  build-and-analyze:
+    name: Build and SonarQube Analysis
     runs-on: ubuntu-latest
+    timeout-minutes: 30 # Prevent runaway jobs
 
     steps:
-      - uses: actions/checkout@v4
+      - name: Checkout Code
+        uses: actions/checkout@v4
         with:
-          fetch-depth: 0
+          fetch-depth: 0 # Required for SonarQube change detection
 
-      - name: Setup JDK 17
+      - name: Setup JDK
         uses: actions/setup-java@v4
         with:
-          java-version: 17
+          java-version: ${{ env.JAVA_VERSION }}
           distribution: 'zulu'
 
       - name: Setup .NET SDK
         uses: actions/setup-dotnet@v4
         with:
-          dotnet-version: '8.0.x'
+          dotnet-version: ${{ env.DOTNET_VERSION }}
 
-      - name: Cache SonarQube packages
+      - name: Cache SonarQube Packages
         uses: actions/cache@v4
         with:
           path: ~/.sonar/cache
-          key: ${{ runner.os }}-sonar
-          restore-keys: ${{ runner.os }}-sonar
+          key: ${{ runner.os }}-sonar-${{ hashFiles('**/global.json', '**/project.json') }}
+          restore-keys: ${{ runner.os }}-sonar-
 
-      - name: Cache SonarQube scanner
+      - name: Cache SonarQube Scanner
         id: cache-sonar-scanner
         uses: actions/cache@v4
         with:
@@ -48,21 +52,47 @@ jobs:
           key: ${{ runner.os }}-sonar-scanner
           restore-keys: ${{ runner.os }}-sonar-scanner
 
-      - name: Install SonarQube scanner
+      - name: Install SonarQube Scanner
         if: steps.cache-sonar-scanner.outputs.cache-hit != 'true'
         run: |
           mkdir -p "${{ env.SONAR_SCANNER_DIR }}"
-          dotnet tool update dotnet-sonarscanner --tool-path "${{ env.SONAR_SCANNER_DIR }}"
+          dotnet tool install dotnet-sonarscanner --tool-path "${{ env.SONAR_SCANNER_DIR }}"
+        continue-on-error: false # Fail fast if installation fails
 
-      - name: Build and Analyze with SonarQube
+      - name: SonarQube Begin
         run: |
           "${{ env.SONAR_SCANNER_DIR }}/dotnet-sonarscanner" begin \
             /k:"${{ env.SONAR_PROJECT_KEY }}" \
             /d:sonar.token="${{ env.SONAR_TOKEN }}" \
             /d:sonar.host.url="${{ env.SONAR_HOST_URL }}" \
-            /d:sonar.scanner.scanAll=false
+            /d:sonar.scanner.scanAll=false \
+            /d:sonar.verbose=true # Enable verbose logging for debugging
+        continue-on-error: false # Fail fast if begin fails
 
-          dotnet build
+      - name: Build Project
+        run: dotnet build --configuration Release --no-restore # Optimize build
+        continue-on-error: false # Fail fast if build fails
 
+      - name: Run Tests
+        run: dotnet test --no-build --configuration Release --logger "console;verbosity=detailed"
+        continue-on-error: true # Allow tests to fail without stopping analysis
+
+      - name: SonarQube End
+        if: always() # Run even if previous steps fail
+        run: |
           "${{ env.SONAR_SCANNER_DIR }}/dotnet-sonarscanner" end \
             /d:sonar.token="${{ env.SONAR_TOKEN }}"
+        continue-on-error: false # Fail if analysis upload fails
+
+      - name: Check SonarQube Quality Gate
+        if: always() # Run to provide feedback
+        run: |
+          QUALITY_GATE_STATUS=$(curl -s -u "${{ env.SONAR_TOKEN }}:" "${{ env.SONAR_HOST_URL }}/api/qualitygates/project_status?projectKey=${{ env.SONAR_PROJECT_KEY }}" | jq -r '.projectStatus.status')
+          echo "SonarQube Quality Gate Status: $QUALITY_GATE_STATUS"
+          if [ "$QUALITY_GATE_STATUS" = "ERROR" ]; then
+            echo "Quality Gate failed!"
+            exit 1
+          fi
+        env:
+          SONAR_TOKEN: ${{ secrets.SONAR_TOKEN }}
+          SONAR_HOST_URL: ${{ secrets.SONAR_HOST_URL }}
