@@ -1,7 +1,6 @@
 FROM mcr.microsoft.com/dotnet/sdk:8.0-alpine AS build
 WORKDIR /src
 
-# Copy and restore as root (build stage doesn't need non-root user)
 COPY yarp/yarp.csproj ./yarp/
 WORKDIR /src/yarp
 RUN dotnet restore -r linux-musl-x64
