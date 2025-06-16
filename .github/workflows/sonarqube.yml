@@ -8,6 +8,9 @@ on:
   pull_request:
     branches: [ "main" ]
 
+permissions:
+  contents: read
+
 env:
   SONAR_PROJECT_KEY: "guilhermelinosp_yarp-worker_a2c93dff-a9c3-4e98-a7cd-d89135f556d1"
   SONAR_SCANNER_DIR: ".sonar/scanner"
